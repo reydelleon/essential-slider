@@ -1,0 +1,25 @@
+{
+  "name": "essential-slider",
+  "version": "0.0.1",
+  "description": "A Javascript slider that I created just for the fun of it. It's written following the ES6 standard.",
+  "main": "essential-slider.es6.js",
+  "scripts": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/reydelleon/essential-slider.git"
+  },
+  "keywords": [
+    "javascript",
+    "slider",
+    "essential",
+    "slider"
+  ],
+  "author": "Reydel Leon Machado",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/reydelleon/essential-slider/issues"
+  },
+  "homepage": "https://github.com/reydelleon/essential-slider#readme"
+}
