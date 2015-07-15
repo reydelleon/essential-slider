@@ -1,51 +1,250 @@
-/*
- * Minimal  Slider by Reydel Leon Machado
- * @author  Reydel Leon Machado
- * @license MIT License
+/**
+ * Essential-Slider
+ *
+ * @author      Reydel Leon Machado
+ * @version     0.0.1
+ * @license     MIT License
  */
-.min-slider .slider-viewport {
-    overflow: hidden;
-}
 
-.slides {
-    position: relative;
-    margin: 0;
-    padding: 0;
-    height: 100%;
+((window) => {
+    var minimalSlider;
 
-    -webkit-transition: 0.5s left;
-    -moz-transition: 0.5s left;
-    -ms-transition: 0.5s left;
-    -o-transition: 0.5s left;
-}
+    /**
+     * An Object to hold an individual slider's data
+     *
+     * @param {NodeList} slider
+     * @constructor
+     */
+    class Slider {
+        get optionDefaults() {
+            return {
+                direction: 'right',
+                gutter: 1,
+                currentSlide: 0,
+                delay: 10,
+                duration: 1000, // One second by default
+                pauseTime: 4000,
+                auto: false,
+                easying: 'easyInOut'
+                //prevText: '&laquo',
+                //nextText: '&raquo'
+            }
+        }
 
-.slide {
-    position: relative;
-    float: left;
-}
+        /**
+         *
+         * @param {HTMLNode} sliderNode
+         * @param options
+         */
+        constructor(sliderNode, options) {
+            this.node = sliderNode,
+                    this.controls = this.node.children[0],
+                    this.controlPrev = this.controls.children[0],
+                    this.controlNext = this.controls.children[1],
+                    this.viewport = sliderNode.children[1],
+                    this.ul = this.viewport.children[0],
+                    this.li = this.ul.children,
+                    this.liCount = this.li.length,
 
-.slider-controls .control {
-    font-family: Montserrat, sans-serif;
-    font-size: 3rem;
-    cursor: pointer;
-    display: inline-block;
-    z-index: 1000;
-    position: fixed;
-    top: 50%;
-    font-size: 7rem;
-    color: #333;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
-}
+                    this.options = Object.assign({}, this.optionDefaults, options);
 
-.slider-controls .control:hover {
-    text-shadow: 0 10px 20px rgba(0, 0, 0, 0.19), 0 6px 6px rgba(0, 0, 0, 0.23);
-    transition: all 0.2s ease-in-out;
-}
+            return this;
+        }
 
-.slider-controls .next {
-    right: 3rem;
-}
+        init() {
+            var slidesContainerWidth,
+                slideWidth,
 
-.slider-controls .prev {
-    left: 3rem;
-}
+                slidesContainerWidth = 100 * this.liCount + (this.options.gutter * this.liCount),
+                slideWidth           = Math.floor(100 / this.liCount) - this.options.gutter;
+
+            this.ul.style.width = slidesContainerWidth + '%';
+            this.ul.style.left = '0%';
+
+            for (var i = 0; i < this.li.length; i += 1) {
+                this.li[i].style.width = slideWidth + '%';
+                this.li[i].style.marginRight = 1 + '%';
+            }
+
+            // Bound the click events on the navigation controls to the appropriate actions
+            this.controlNext.addEventListener('click', this.goTo.bind(this, { direction: 'right' }));
+            this.controlPrev.addEventListener('click', this.goTo.bind(this, { direction: 'left' }));
+
+            this.goTo({ slideIndex: this.options.currentSlide });
+        }
+
+        /**
+         * Generic animation function. It relies on two functions to operate: <tt>delta</tt> and <tt>step</tt>.
+         * <tt>delta</tt> is charged with calculating in what stage is the animation at any given time, while
+         * <tt>step</tt> is charged with executing the actual animation, one step at a time.
+         *
+         * @param {Object} options Contains the following properties: delay(optional), duration, {function}delta and
+         * {function}step.
+         */
+        animate(options) {
+            var start = new Date(),
+                id;
+
+            id = setInterval(() => {
+                var lapsedTime,
+                    progress,
+                    delta;
+
+                lapsedTime = new Date() - start;
+                progress = lapsedTime / options.duration;
+
+                progress = progress < 1 ? progress : 1; // To account for browser timer inconsistencies.
+
+                delta = options.delta(progress);
+                options.step(delta);
+
+                if (progress === 1) {
+                    clearInterval(id);
+                }
+            }, options.delay || this.options.delay);
+        }
+
+        /**
+         * Will change the current slide. If a specific index is provided, the slider will move to the
+         * corresponding slide. If a specific index is not provided, the slider will move to the next slide
+         * following the specified direction. If no direction is provided, it will use <tt>right</tt> as the default
+         * direction.
+         *
+         * @param {Object} options
+         */
+        goTo(options) {
+            var index,
+                effectiveGutter,
+                targetPosition,
+                offset,
+                currentPosition;
+
+            if (typeof options.slideIndex === 'undefined') { // We're moving through nav, one slide at a time
+                if (options.direction === 'right') {
+                    index = this.options.currentSlide < this.li.length - 1 ? this.options.currentSlide + 1 : 0;
+                } else { //Assume left
+                    index = this.options.currentSlide > 0 ? this.options.currentSlide - 1 : this.li.length - 1;
+                }
+            } else { // We're moving to a specific slide
+                index = options.slideIndex >= 0 && options.slideIndex <= this.li.length - 1 ? options.slideIndex : 0;
+            }
+
+            effectiveGutter = index > 0 ? this.options.gutter : 0;
+            currentPosition = parseInt(this.ul.style.left);
+            targetPosition = -1 * (100 * index + effectiveGutter); // Always negative. If -0, it is interpreted as 0
+
+            offset = targetPosition - currentPosition; // Positive when moving left, negative when moving right
+
+
+            this.animate({
+                duration: this.options.duration,
+                delta: this.makeEaseInOut(this.quint),
+                step: delta => {
+                    var stepPosition = currentPosition + offset * delta;
+                    //var stepPosition = parseInt(this.ul.style.left) + offset * delta;
+
+                    this.ul.style.left = stepPosition + '%';
+                }
+            });
+
+            this.options.currentSlide = index;
+        }
+
+        /**
+         *
+         * @param progress
+         * @returns {number}
+         */
+        quad(progress) {
+            return Math.pow(progress, 2);
+        }
+
+        quint(progress) {
+            return Math.pow(progress, 5);
+        }
+
+        circ(progress) {
+            return 1 - Math.sin(Math.acos(progress));
+        }
+
+        bounce(progress) {
+            for (var a = 0, b = 1, result; 1; a += b, b /= 2) {
+                if (progress >= (7 - 4 * a) / 11) {
+                    return -Math.pow((11 - 6 * a - 11 * progress) / 4, 2) + Math.pow(b, 2);
+                }
+            }
+        }
+
+        /**
+         * The "bow function".
+         *
+         * @param progress
+         * @param x
+         * @returns {number}
+         */
+        back(progress, x) {
+            return Math.pow(progress, 2) * ((x + 1) * progress - x);
+        }
+
+        makeEaseInOut(delta) {
+            return function (progress) {
+                if (progress < .5) {
+                    return delta(2 * progress) / 2;
+                } else {
+                    return (2 - delta(2 * (1 - progress))) / 2;
+                }
+            }
+        }
+    }
+
+    /**
+     * This is the library Object.
+     *
+     * @param {NodeList[]} nodeList
+     * @constructor
+     */
+    function MinimalSlider(nodeList, options) {
+        var sliders = [];
+
+        // Set up the sliders
+        nodeList.forEach((node, index, sliders) => {
+            let slider = new Slider(node, options);
+            sliders.push(slider);
+            slider.init();
+        });
+    }
+
+    /**
+     * Initializes the sliders
+     *
+     * @param selector
+     * @returns {MinimalSlider}
+     */
+    function init(selector = 'minimal-slider', options = {}) {
+        var sliderEls = [],
+            els       = document.querySelectorAll(selector);
+
+        for (var i = 0; i < els.length; i += 1) {
+            sliderEls.push(els[i]);
+        }
+
+        return new MinimalSlider(sliderEls, options);
+    }
+
+    /**
+     * This is the Object that will be used to access the library methods.
+     *
+     * @type {Object}
+     */
+    minimalSlider = {
+        init: init
+    };
+
+    //define globally if it doesn't already exist
+    if (typeof(window.MinimalSlider) === 'undefined') {
+        window.MinimalSlider = minimalSlider;
+    }
+    else {
+        console.log("Library already defined.");
+    }
+})(window);

@@ -1,13 +1,12 @@
 /**
- * @module      simple-slider
+ * Essential-Slider
+ *
  * @author      Reydel Leon Machado
- * @copyright   (c) 2015 Reydel Leon Machado
+ * @version     0.0.1
  * @license     MIT License
  */
 
 ((window) => {
-    "use strict";
-
     var minimalSlider;
 
     /**
@@ -19,8 +18,16 @@
     class Slider {
         get optionDefaults() {
             return {
+                direction: 'right',
                 gutter: 1,
-                currentIndex: 0
+                currentSlide: 0,
+                delay: 10,
+                duration: 1000, // One second by default
+                pauseTime: 4000,
+                auto: false,
+                easying: 'easyInOut'
+                //prevText: '&laquo',
+                //nextText: '&raquo'
             }
         }
 
@@ -59,28 +66,65 @@
             }
 
             // Bound the click events on the navigation controls to the appropriate actions
-            this.controlNext.addEventListener('click', this.next.bind(this));
-            this.controlPrev.addEventListener('click', this.prev.bind(this));
+            this.controlNext.addEventListener('click', this.move.bind(this, 'right'));
+            this.controlPrev.addEventListener('click', this.move.bind(this, 'left'));
 
-            this.move(this.options.currentIndex);
+            this.move('right');
         }
 
-        move(index) {
-            index = index >= 0 ? index : this.li.length - 1;
-            index = index <= this.li.length - 1 ? index : 0;
+        /**
+         * Generic animation function. It relies on two functions to operate: <tt>delta</tt> and <tt>step</tt>.
+         * <tt>delta</tt> is charged with calculating in what stage is the animation at any given time, while
+         * <tt>step</tt> is charged with executing the actual animation, one step at a time.
+         *
+         * @param {Object} options Contains the following properties: delay(optional), duration, {function}delta and
+         * {function}step.
+         */
+        animate(options) {
+            var start = new Date(),
+                id;
 
-            var effectiveGutter = index > 0 ? this.options.gutter : 0;
+            id = setInterval(() => {
+                var lapsedTime,
+                    progress,
+                    delta;
 
-            this.ul.style.left = '-' + (100 * index + effectiveGutter) + '%';
-            this.options.currentIndex = index;
+                lapsedTime = new Date() - start;
+                progress = lapsedTime / options.duration;
+
+                progress = progress < 1 ? progress : 1; // To account for browser timer inconsistencies.
+
+                delta = options.delta(progress);
+                options.step(delta);
+
+                if (progress === 1) {
+                    clearInterval(id);
+                }
+            }, options.delay || this.options.delay);
         }
 
-        next() {
-            this.move(this.options.currentIndex + 1);
-        }
+        move(direction = this.options.direction) {
+            var index,
+                effectiveGutter,
+                target;
+            if (direction === 'right') {
+                index = this.options.currentSlide < this.li.length - 1 ? this.options.currentSlide + 1 : 0;
+            } else { //Assume left
+                index = this.options.currentSlide > 0 ? this.options.currentSlide - 1 : this.li.length - 1;
+            }
 
-        prev() {
-            this.move(this.options.currentIndex - 1);
+            effectiveGutter = index > 0 ? this.options.gutter : 0;
+            target = 100 * index + effectiveGutter;
+
+            this.animate({
+                duration: this.options.duration,
+                delta: progress => progress,
+                step: delta => {
+                    this.ul.style.left = '-' + target * delta + '%';
+                }
+            });
+
+            this.options.currentSlide = index;
         }
     }
 
